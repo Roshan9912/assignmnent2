@@ -102,7 +102,9 @@ An abbreviated consumption response:
 
 ## Public deployment on Render
 
-The repository includes a Render Blueprint in [`render.yaml`](./render.yaml). To create the public service:
+The live service is deployed at **https://flock-urja-api-lfy5.onrender.com**. Its public health check is `https://flock-urja-api-lfy5.onrender.com/healthz`; data endpoints require the bearer API key.
+
+The repository includes a Render Blueprint in [`render.yaml`](./render.yaml). To recreate the public service:
 
 1. Push the repository to GitHub (already done for this submission) and sign in to [Render](https://dashboard.render.com).
 2. Choose **New → Blueprint**, connect `Roshan9912/assignmnent2`, and select the `main` branch.
