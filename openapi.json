@@ -36,6 +36,7 @@
     "/api/v1/meters": {
       "get": {
         "summary": "Search and page through meters",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           {
             "name": "q",
@@ -60,6 +61,7 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "502": { "$ref": "#/components/responses/UpstreamError" }
         }
       }
@@ -67,6 +69,7 @@
     "/api/v1/meters/{meterId}": {
       "get": {
         "summary": "Get meter details and network location",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           {
             "name": "meterId",
@@ -85,6 +88,7 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "502": { "$ref": "#/components/responses/UpstreamError" }
         }
@@ -93,6 +97,7 @@
     "/api/v1/meters/{meterId}/hierarchy": {
       "get": {
         "summary": "Get the meter's network hierarchy",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           {
             "name": "meterId",
@@ -111,6 +116,7 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "502": { "$ref": "#/components/responses/UpstreamError" }
         }
@@ -119,6 +125,7 @@
     "/api/v1/meters/{meterId}/consumption": {
       "get": {
         "summary": "Get the portal's available consumption history",
+        "security": [{ "BearerAuth": [] }],
         "description": "Returns all readings supplied by the portal. Timestamps are preserved as portal-local strings because the portal does not declare a timezone.",
         "parameters": [
           {
@@ -138,6 +145,7 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "502": { "$ref": "#/components/responses/UpstreamError" }
         }
@@ -146,6 +154,7 @@
     "/api/v1/transformers": {
       "get": {
         "summary": "Page through distribution transformers",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           {
             "name": "page",
@@ -164,12 +173,21 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "502": { "$ref": "#/components/responses/UpstreamError" }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API key",
+        "description": "Use the API_KEY configured for this deployment. Never commit or publish this secret."
+      }
+    },
     "schemas": {
       "ApiError": {
         "type": "object",
@@ -298,6 +316,15 @@
       }
     },
     "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid API bearer token",
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": { "type": "string" }
+          }
+        },
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+      },
       "BadRequest": {
         "description": "Invalid request parameter",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }

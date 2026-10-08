@@ -1,4 +1,5 @@
 import express from "express";
+import { timingSafeEqual } from "node:crypto";
 import {
   InvalidPortalDataError,
   normalizeMeterList,
@@ -27,12 +28,35 @@ async function meterExists(client, meterId) {
   return (payload.data ?? []).some((meter) => meter.meterId === meterId);
 }
 
-export function createApp(client) {
+export function createApp(client, { apiKey } = {}) {
+  if (typeof apiKey !== "string" || apiKey.length < 32) {
+    throw new Error("API_KEY must contain at least 32 characters");
+  }
+
   const app = express();
   app.disable("x-powered-by");
 
   app.get("/healthz", (_request, response) => {
     response.json({ status: "ok" });
+  });
+
+  app.use("/api/v1", (request, response, next) => {
+    const authorization = request.get("authorization") ?? "";
+    const match = authorization.match(/^Bearer (.+)$/i);
+    const provided = match?.[1] ?? "";
+    const expectedBytes = Buffer.from(apiKey);
+    const providedBytes = Buffer.from(provided);
+    const valid = expectedBytes.length === providedBytes.length &&
+      timingSafeEqual(expectedBytes, providedBytes);
+
+    if (!valid) {
+      response.set("WWW-Authenticate", "Bearer");
+      response.status(401).json({
+        error: { code: "unauthorized", message: "A valid bearer token is required." }
+      });
+      return;
+    }
+    next();
   });
 
   app.get("/api/v1/meters", async (request, response, next) => {

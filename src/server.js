@@ -9,12 +9,16 @@ const client = new PortalClient({
   timeoutMs: Number(process.env.PORTAL_TIMEOUT_MS || 10000)
 });
 
+if (!process.env.API_KEY || process.env.API_KEY.length < 32) {
+  throw new Error("API_KEY must be set to a secret value of at least 32 characters");
+}
+
 const port = Number(process.env.PORT || 3000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT must be an integer between 1 and 65535");
 }
 
-const server = createApp(client).listen(port, () => {
+const server = createApp(client, { apiKey: process.env.API_KEY }).listen(port, () => {
   console.log(`Flock Urja API listening on http://localhost:${port}`);
 });
 
