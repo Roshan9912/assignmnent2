@@ -1,0 +1,315 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Flock Energy Urja Meter API",
+    "version": "1.0.0",
+    "description": "Read-only API for meter, distribution transformer, network hierarchy, and consumption data from the Urja Meter Ops portal. The API authenticates to the portal using server-side credentials; callers do not need portal credentials."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Check service health",
+        "responses": {
+          "200": {
+            "description": "Service is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status"],
+                  "properties": {
+                    "status": { "type": "string", "const": "ok" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters": {
+      "get": {
+        "summary": "Search and page through meters",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Portal search text; matches meter number or serial number.",
+            "schema": { "type": "string", "maxLength": 100, "default": "" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number. The portal page size is fixed at 20.",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meter page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MeterPage" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "502": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}": {
+      "get": {
+        "summary": "Get meter details and network location",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meter detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MeterDetail" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "502": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/hierarchy": {
+      "get": {
+        "summary": "Get the meter's network hierarchy",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hierarchy from zone down to distribution transformer",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MeterHierarchy" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "502": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/consumption": {
+      "get": {
+        "summary": "Get the portal's available consumption history",
+        "description": "Returns all readings supplied by the portal. Timestamps are preserved as portal-local strings because the portal does not declare a timezone.",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consumption readings (observed cadence: 30 minutes)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Consumption" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "502": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
+    },
+    "/api/v1/transformers": {
+      "get": {
+        "summary": "Page through distribution transformers",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number. The portal page size is fixed at 20.",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distribution transformer page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TransformerPage" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "502": { "$ref": "#/components/responses/UpstreamError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      },
+      "MeterSummary": {
+        "type": "object",
+        "required": [
+          "meter_id",
+          "serial_number",
+          "make",
+          "phase_type",
+          "installation_status",
+          "distribution_transformer_code"
+        ],
+        "properties": {
+          "meter_id": { "type": "string" },
+          "serial_number": { "type": "string" },
+          "make": { "type": "string" },
+          "phase_type": { "type": "string" },
+          "installation_status": { "type": "string" },
+          "distribution_transformer_code": { "type": ["string", "null"] }
+        }
+      },
+      "MeterPage": {
+        "type": "object",
+        "required": ["data", "total", "page", "page_size"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/MeterSummary" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "page_size": { "type": "integer" }
+        }
+      },
+      "HierarchyNode": {
+        "type": "object",
+        "required": ["level", "name", "code"],
+        "properties": {
+          "level": { "type": "string" },
+          "name": { "type": "string" },
+          "code": { "type": "string" }
+        }
+      },
+      "MeterDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/MeterSummary" },
+          {
+            "type": "object",
+            "required": ["network_hierarchy", "location"],
+            "properties": {
+              "installation_type": { "type": "string" },
+              "network_hierarchy": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/HierarchyNode" }
+              },
+              "location": {
+                "type": "object",
+                "required": ["latitude", "longitude"],
+                "properties": {
+                  "latitude": { "type": ["number", "null"] },
+                  "longitude": { "type": ["number", "null"] }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MeterHierarchy": {
+        "type": "object",
+        "required": ["meter_id", "distribution_transformer_code", "hierarchy"],
+        "properties": {
+          "meter_id": { "type": "string" },
+          "distribution_transformer_code": { "type": ["string", "null"] },
+          "hierarchy": { "type": "array", "items": { "$ref": "#/components/schemas/HierarchyNode" } }
+        }
+      },
+      "Reading": {
+        "type": "object",
+        "required": ["timestamp", "kwh", "kvah", "voltage_r"],
+        "properties": {
+          "timestamp": { "type": "string", "description": "DD/MM/YYYY HH:mm; timezone not provided by portal." },
+          "kwh": { "type": "number" },
+          "kvah": { "type": "number" },
+          "voltage_r": { "type": "number" }
+        }
+      },
+      "Consumption": {
+        "type": "object",
+        "required": ["meter_id", "interval_minutes", "count", "readings"],
+        "properties": {
+          "meter_id": { "type": "string" },
+          "interval_minutes": { "type": "integer" },
+          "count": { "type": "integer" },
+          "readings": { "type": "array", "items": { "$ref": "#/components/schemas/Reading" } }
+        }
+      },
+      "Transformer": {
+        "type": "object",
+        "required": ["code", "name", "feeder_code", "capacity_kva"],
+        "properties": {
+          "code": { "type": "string" },
+          "name": { "type": "string" },
+          "feeder_code": { "type": "string" },
+          "capacity_kva": { "type": "number" }
+        }
+      },
+      "TransformerPage": {
+        "type": "object",
+        "required": ["data", "total", "page", "page_size"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Transformer" } },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "page_size": { "type": "integer" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request parameter",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+      },
+      "NotFound": {
+        "description": "The requested meter does not exist",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+      },
+      "UpstreamError": {
+        "description": "Portal unavailable, session invalid, or portal response malformed",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } }
+      }
+    }
+  }
+}
